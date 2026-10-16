@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pluie de mots invariables</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#fbfaf3;--line:#a9c2e6;--line2:#d5e2f4;--margin:#e4837f;
+  --ink:#1d2b5e;--pill:#fff3b0;--pill-edge:#e0b800;--ok:#1f9d55;
+  --danger:#ffd9d6;--btn:#2f5bd8;--btn-ink:#fff;--panel:#ffffff;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#172036;--line:#34466f;--line2:#243250;--margin:#9a4f5a;
+    --ink:#e8ecff;--pill:#4a4a85;--pill-edge:#ffd84d;--ok:#5be28f;
+    --danger:#5a2a35;--btn:#7aa2ff;--btn-ink:#10183a;--panel:#212c4a;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#172036;--line:#34466f;--line2:#243250;--margin:#9a4f5a;
+  --ink:#e8ecff;--pill:#4a4a85;--pill-edge:#ffd84d;--ok:#5be28f;
+  --danger:#5a2a35;--btn:#7aa2ff;--btn-ink:#10183a;--panel:#212c4a;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:Andika,"Comic Sans MS",system-ui,sans-serif;overflow:hidden}
+#game{display:flex;flex-direction:column;height:100%;max-width:900px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;font-family:"Baloo 2",Andika,sans-serif;font-size:1.5rem;position:relative;z-index:3}
+#lives{letter-spacing:4px}
+#field{flex:1;position:relative;overflow:hidden;
+  background-image:
+    linear-gradient(var(--line) 1px,transparent 1px),
+    linear-gradient(var(--line2) 1px,transparent 1px),
+    linear-gradient(90deg,var(--line2) 1px,transparent 1px);
+  background-size:100% 32px,100% 8px,32px 100%;
+  border-top:2px solid var(--line);}
+#field::before{content:"";position:absolute;top:0;bottom:0;left:44px;width:2px;background:var(--margin);opacity:.7}
+#floor{position:absolute;left:0;right:0;bottom:0;height:34px;background:var(--danger);border-top:3px dashed var(--margin);z-index:1}
+.word{position:absolute;top:0;left:0;padding:4px 16px;border-radius:999px;background:var(--pill);border:3px solid var(--pill-edge);
+  font-size:clamp(1.4rem,5vw,2rem);font-weight:700;white-space:nowrap;z-index:2;will-change:transform}
+.word .ok{color:var(--ok)}
+.word.hit{animation:pop .25s forwards}
+.word.miss{animation:fall .3s forwards}
+@keyframes pop{to{opacity:0;scale:1.5}}
+@keyframes fall{to{opacity:0}}
+#bar{padding:12px 16px;background:var(--paper);border-top:2px solid var(--line);z-index:3}
+#typed{width:100%;font:700 1.8rem Andika,sans-serif;padding:10px 16px;border-radius:14px;border:3px solid var(--ink);background:var(--panel);color:var(--ink);text-align:center}
+#typed:focus-visible{outline:4px solid var(--btn);outline-offset:2px}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--paper) 85%,transparent);z-index:10;padding:16px}
+#overlay[hidden]{display:none}
+.card{background:var(--panel);border:3px solid var(--ink);border-radius:20px;padding:24px;max-width:480px;width:100%;text-align:center}
+.card h1{font-family:"Baloo 2",Andika,sans-serif;font-size:clamp(1.8rem,7vw,2.6rem);margin:0 0 8px;line-height:1.1}
+.card p{font-size:1.1rem;margin:8px 0 16px}
+.levels{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+button{font:700 1.3rem Andika,sans-serif;padding:14px;border-radius:14px;border:3px solid var(--ink);background:var(--btn);color:var(--btn-ink);cursor:pointer}
+button:hover{filter:brightness(1.1)}
+button:focus-visible{outline:4px solid var(--ink);outline-offset:2px}
+button.alt{background:var(--panel);color:var(--ink)}
+.opt{display:block;margin-top:14px;font-size:1rem}
+.big{font-family:"Baloo 2",Andika,sans-serif;font-size:3rem;line-height:1}
+@media (prefers-reduced-motion:reduce){.word.hit,.word.miss{animation:none;opacity:0}}
+</style>
+</head>
+<body>
+<div id="game">
+  <header><span>⭐ <span id="score">0</span></span><span id="lives" aria-label="vies"></span></header>
+  <div id="field"><div id="floor"></div></div>
+  <div id="bar"><input id="typed" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Écris le mot ici" placeholder="Écris le mot ici"></div>
+  <div id="overlay"></div>
+</div>
+<script>
+const LISTS={
+ CE1:["à","après","avec","beaucoup","bientôt","comme","dans","de","devant","donc","encore","et","hier","ici","mais","ou","où","par","pour","puis","sous","sur","toujours","très","vers","alors","aussi","demain","déjà","maintenant","jamais","sans"],
+ CE2:["autour","avant","bien","car","chez","contre","depuis","derrière","dès","enfin","entre","environ","loin","longtemps","parfois","pendant","peu","plus","presque","souvent","surtout","tant","tard","tôt","trop","ainsi","assez","moins","parmi","voici","voilà","dedans","dehors","dessus","dessous"],
+ CM1:["afin","ailleurs","autrefois","cependant","certes","davantage","désormais","jadis","lorsque","malgré","néanmoins","pourtant","puisque","quand","selon","sinon","tandis","toutefois","partout","plutôt","autant","aussitôt","soudain","tellement","pourquoi","comment"],
+ CM2:["auprès","hormis","mieux","notamment","outre","pourvu","quoique","sauf","également","autrement","moyennant","dorénavant","auparavant","quelquefois","volontiers","lors","jusque","suivant","vis-à-vis","d'abord","d'ailleurs","aujourd'hui"]
+};
+const ORDER=["CE1","CE2","CM1","CM2"];
+const SPEED={CE1:38,CE2:48,CM1:58,CM2:68}; // px/s au départ
+const $=id=>document.getElementById(id);
+const field=$("field"),typed=$("typed"),ov=$("overlay");
+let level="CE1",pool=[],words=[],score=0,lives=3,count=0,running=false,last=0,spawnT=0,noAccent=false;
+const norm=s=>noAccent?s.normalize("NFD").replace(/[\u0300-\u036f]/g,""):s;
+const best=()=>{try{return +localStorage.getItem("mi-best-"+level)||0}catch(e){return 0}};
+const saveBest=()=>{try{localStorage.setItem("mi-best-"+level,Math.max(best(),score))}catch(e){}};
+
+function menu(){
+  running=false;
+  ov.hidden=false;
+  ov.innerHTML=`<div class="card"><h1>✏️ Pluie de mots invariables</h1>
+  <p>Tape chaque mot avant qu'il touche le bas. Tu as 3 vies !</p>
+  <div class="levels">${ORDER.map(l=>`<button data-l="${l}">${l}</button>`).join("")}</div>
+  <label class="opt"><input type="checkbox" id="acc" ${noAccent?"checked":""}> Accents facultatifs (plus facile)</label></div>`;
+  ov.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{noAccent=$("acc").checked;start(b.dataset.l)});
+}
+function start(l){
+  level=l;
+  pool=[];
+  for(let i=0;i<=ORDER.indexOf(l);i++)pool=pool.concat(LISTS[ORDER[i]]);
+  words.forEach(w=>w.el.remove());words=[];
+  score=0;lives=3;count=0;spawnT=0;last=performance.now();
+  render();typed.value="";ov.hidden=true;running=true;typed.focus();
+  requestAnimationFrame(loop);
+}
+function render(){
+  $("score").textContent=score;
+  $("lives").textContent="❤️".repeat(lives)+"🖤".repeat(3-lives);
+}
+function spawn(){
+  const free=pool.filter(t=>!words.some(w=>w.text===t));
+  const text=free[Math.floor(Math.random()*free.length)];
+  const el=document.createElement("div");
+  el.className="word";el.textContent=text;
+  field.appendChild(el);
+  const maxX=Math.max(0,field.clientWidth-el.offsetWidth-70);
+  const w={text,el,x:60+Math.random()*maxX,y:-50};
+  el.style.transform=`translate(${w.x}px,${w.y}px)`;
+  words.push(w);
+}
+function loop(t){
+  if(!running)return;
+  const dt=Math.min(.05,(t-last)/1000);last=t;
+  const speed=SPEED[level]+count*1.6;
+  spawnT-=dt;
+  if(spawnT<=0){spawn();spawnT=Math.max(1.4,3.6-count*0.05)}
+  const limit=field.clientHeight-34-50;
+  for(const w of [...words]){
+    w.y+=speed*dt;
+    w.el.style.transform=`translate(${w.x}px,${w.y}px)`;
+    if(w.y>=limit){remove(w,"miss");lives--;render();if(lives<=0){end();return}}
+  }
+  requestAnimationFrame(loop);
+}
+function remove(w,cls){
+  words=words.filter(x=>x!==w);
+  w.el.classList.add(cls);
+  setTimeout(()=>w.el.remove(),300);
+}
+typed.addEventListener("input",()=>{
+  if(!running)return;
+  const v=norm(typed.value.trim().toLowerCase());
+  for(const w of [...words]){
+    const t=norm(w.text);
+    if(v&&t===v){
+      remove(w,"hit");score+=10+w.text.length;count++;render();typed.value="";
+      words.forEach(o=>o.el.textContent=o.text);return;
+    }
+    const n=v&&t.startsWith(v)?v.length:0;
+    w.el.innerHTML=n?`<span class="ok">${w.text.slice(0,n)}</span>${w.text.slice(n)}`:w.text;
+  }
+});
+typed.addEventListener("keydown",e=>{if(e.key==="Enter"){typed.value="";words.forEach(o=>o.el.textContent=o.text)}});
+function end(){
+  running=false;
+  const prev=best();saveBest();
+  const rec=score>prev&&score>0;
+  ov.hidden=false;
+  ov.innerHTML=`<div class="card"><h1>Bravo !</h1>
+  <div class="big">⭐ ${score}</div>
+  <p>${count} mot${count>1?"s":""} écrit${count>1?"s":""} en ${level}.<br>${rec?"🏆 Nouveau record !":"Record : "+best()}</p>
+  <div class="levels"><button id="again">Rejouer</button><button class="alt" id="menu">Niveaux</button></div></div>`;
+  $("again").onclick=()=>start(level);
+  $("menu").onclick=menu;
+  $("again").focus();
+}
+document.addEventListener("click",()=>{if(running)typed.focus()});
+menu();
+</script>
+</body>
+</html>
